@@ -1,48 +1,65 @@
-// ============================================================
-// Nordic Media Engine — Service Worker
-// App-shell caching + offline fallback + push-notifikationer
-// ============================================================
+// Venstre Syddjurs – Service Worker
+// Cache-navn bumpes ved hver ny udgivelse, så gamle caches ryddes automatisk.
+const CACHE_NAME = 'v-syddjurs-pwa-v2';
 
-const CACHE_VERSION = 'venstre-syddjurs-v2-fixed';
-const APP_SHELL = ['./', './index.html', './index.html?org=venstre-syddjurs', './config.js', './manifest.json'];
+const ASSETS_TO_CACHE = [
+  './',
+  './index.html',
+  './manifest.json',
+  './icon-192.png',
+  './icon-512.png'
+];
 
+// INSTALL: forudcache app-skallen
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE_VERSION).then((cache) => cache.addAll(APP_SHELL)));
-  self.skipWaiting();
-});
-
-self.addEventListener('activate', (event) => {
-  event.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE_VERSION).map((k) => caches.delete(k)))));
-  self.clients.claim();
-});
-
-self.addEventListener('fetch', (event) => {
-  const req = event.request;
-  if (req.method !== 'GET') return;
-  if (req.url.includes('supabase.co')) return; // data skal altid være friskt
-
-  event.respondWith(
-    fetch(req)
-      .then((res) => { const clone = res.clone(); caches.open(CACHE_VERSION).then((c) => c.put(req, clone)); return res; })
-      .catch(() => caches.match(req).then((cached) => cached || caches.match('./index.html')))
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then((cache) => cache.addAll(ASSETS_TO_CACHE))
+      .then(() => self.skipWaiting())
   );
 });
 
-// Selve afsendelsen af push-beskeder sker server-side (Supabase Edge Function
-// med VAPID private key). Denne handler modtager og viser beskeden.
-self.addEventListener('push', (event) => {
-  let data = { title: 'Nyt indhold', body: 'Der er nyt at læse.' };
-  try { data = event.data.json(); } catch (e) {}
-  event.waitUntil(self.registration.showNotification(data.title, {
-    body: data.body, icon: 'icon-192.png', badge: 'icon-192.png', data: { url: data.url || './index.html' }
-  }));
+// ACTIVATE: ryd gamle caches
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(
+        keys
+          .filter((key) => key !== CACHE_NAME)
+          .map((key) => caches.delete(key))
+      )
+    ).then(() => self.clients.claim())
+  );
 });
 
-self.addEventListener('notificationclick', (event) => {
-  event.notification.close();
-  event.waitUntil(self.clients.matchAll({ type: 'window' }).then((clients) => {
-    const url = event.notification.data?.url || './index.html';
-    for (const client of clients) { if (client.url.includes(url) && 'focus' in client) return client.focus(); }
-    return self.clients.openWindow(url);
-  }));
+// FETCH: "network falling back to cache" for navigation,
+// og "cache falling back to network" for øvrige assets.
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+
+  // Kun håndter GET-requests
+  if (request.method !== 'GET') return;
+
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request).catch(() => caches.match('./index.html'))
+    );
+    return;
+  }
+
+  event.respondWith(
+    caches.match(request).then((cached) => {
+      if (cached) return cached;
+      return fetch(request)
+        .then((response) => {
+          // Cache eksterne assets (fx CDN-scripts) løbende, best-effort
+          if (response && response.status === 200) {
+            const responseClone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, responseClone));
+          }
+          return response;
+        })
+        .catch(() => cached);
+    })
+  );
 });
