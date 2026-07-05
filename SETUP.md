@@ -1,5 +1,29 @@
 # Venstre Syddjurs — app-opsætning
 
+## Demo-tilstand (aktiv lige nu)
+`config.js` har `DEMO_MODE: true`. Appen kører mod et indbygget mock-lag —
+ingen Supabase krævet endnu. Test hele appen sådan:
+
+1. Åbn `index.html` (dobbeltklik lokalt, eller læg alle filer i GitHub Pages).
+2. Tryk "☰ Mere" → "Log ind" → vælg en rolle (Administrator, Redaktør,
+   Bidragyder eller Moderator) i stedet for e-mail. Ingen kode sendes.
+3. Test publicering via "+"-knappen, inkl. billedupload (billedet vises med
+   det samme — gemmes lokalt i browseren, ikke i en rigtig database).
+4. Test adminpanelet under "Mere" (kun synligt når du er logget ind som
+   Administrator/Redaktør/Moderator): statistik, godkendelser,
+   kommentar-moderation, rolletildeling.
+5. En gul "Demo"-mærkat ved logoet gør det tydeligt, at det er testdata.
+
+Testdata gemmes i browserens `localStorage` og overlever en genindlæsning —
+men følger IKKE med, hvis du åbner appen i en anden browser eller enhed.
+
+**Når I er klar til rigtig drift:** sæt `DEMO_MODE: false` i `config.js`,
+udfyld `supabase.url` og `supabase.anonKey`, og login-modalen skifter
+automatisk tilbage til rigtig e-mail/magic link — ingen andre ændringer
+nødvendige. Sig til, så tager jeg jer igennem det trin for trin.
+
+---
+
 Bygget på Nordic Media Engine (multi-tenant-klar arkitektur), men denne leverance
 kører kun med **Venstre Syddjurs** som organisation. Intet "opret kunde"-flow og
 ingen white-label admin-UI i denne version — det kan bygges senere uden at

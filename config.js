@@ -8,6 +8,12 @@
    ============================================================ */
 window.NORDIC_CONFIG = {
 
+  // DEMO_MODE:true kører hele appen mod et lokalt mock-lag (ingen Supabase
+  // krævet) — perfekt til at teste layout, feed, video, kalender, roller
+  // og adminpanel. Sæt til false og udfyld supabase-feltet nedenfor for
+  // at koble til jeres rigtige Supabase-projekt.
+  DEMO_MODE: true,
+
   ORG_SLUG: "venstre-syddjurs",
 
   supabase: {
